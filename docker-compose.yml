@@ -1,0 +1,52 @@
+# ChessMaster — production stack.
+#
+#   docker compose up -d --build      start (or update) the app
+#   docker compose logs -f            follow the logs
+#   docker compose down               stop it
+#
+# Open http://localhost:8080 (or http://<server-ip>:8080).
+#
+# Only the web container is published. nginx serves the React app and forwards
+# /api to the backend over the private compose network, so the API is never
+# exposed directly and no CORS setup is needed.
+
+name: chessmaster
+
+services:
+  backend:
+    build: ./backend
+    image: chessmaster-backend:latest
+    restart: unless-stopped
+    init: true # forwards stop signals so Stockfish shuts down cleanly
+    environment:
+      PORT: 3001
+      # Optional: path to a native Stockfish binary inside the container (faster than WASM).
+      # STOCKFISH_PATH: /usr/games/stockfish
+    # Games live in memory, so run exactly one backend replica.
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Leave empty: the browser calls /api on this same site and nginx proxies it.
+        VITE_API_URL: ""
+    image: chessmaster-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      BACKEND_URL: http://backend:3001
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

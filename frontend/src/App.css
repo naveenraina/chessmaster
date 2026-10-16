@@ -1,0 +1,135 @@
+/* ChessMaster – bright, rounded, child-friendly styling. */
+:root {
+  --bg: #eef6ff;
+  --bg-accent: #fff6e0;
+  --panel: #ffffff;
+  --text: #24324a;
+  --muted: #7a8aa3;
+  --primary: #4f8cff;
+  --hint: #2fbf71;
+  --undo: #ffb020;
+  --new: #ff6b8b;
+  --pgn: #8b6bff;
+  --radius: 18px;
+  --shadow: 0 6px 18px rgba(40, 60, 90, 0.12);
+  font-family: 'Fredoka', 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 10%, var(--bg-accent), transparent 40%), var(--bg);
+}
+
+button { font: inherit; }
+
+.app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+.app-header { text-align: center; margin-bottom: 12px; }
+.app-header h1 { margin: 0; font-size: clamp(2rem, 6vw, 2.8rem); color: var(--primary); letter-spacing: 1px; }
+.app-header p { margin: 4px 0 0; color: var(--muted); font-size: 1.1rem; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.board-column { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.side-column { display: flex; flex-direction: column; gap: 16px; }
+
+.board-wrap { position: relative; width: 100%; max-width: 620px; margin: 0 auto; }
+
+/* --- status ------------------------------------------------------------ */
+/* Reserve room for the comment bubble so the board doesn't jump when it appears. */
+.status-area { display: flex; flex-direction: column; gap: 8px; min-height: 110px; }
+.status { padding: 12px 16px; border-radius: var(--radius); font-size: 1.15rem; font-weight: 500; background: var(--panel); box-shadow: var(--shadow); }
+.status-warn { background: #fff1d6; color: #9a5a00; }
+.status-win { background: #d8f7e4; color: #11683a; font-size: 1.35rem; }
+.status-lose { background: #ffe1e7; color: #a3203f; }
+.status-draw { background: #ece6ff; color: #4b30a8; }
+.status-error { background: #ffe1e7; color: #a3203f; display: flex; justify-content: space-between; gap: 8px; }
+.bubble { padding: 10px 14px; border-radius: var(--radius); background: #f3f7ff; border: 2px dashed #c6d7ff; font-size: 1rem; }
+.hint-bubble { background: #e6f9ee; border-color: #9ee2bc; }
+.link { background: none; border: 0; cursor: pointer; color: inherit; font-size: 1rem; }
+
+/* --- captured pieces ---------------------------------------------------- */
+.captured { display: flex; align-items: center; gap: 10px; padding: 6px 12px; background: var(--panel); border-radius: 12px; box-shadow: var(--shadow); max-width: 620px; width: 100%; margin: 0 auto; }
+.captured-label { font-weight: 600; white-space: nowrap; }
+.captured-pieces { font-size: 1.5rem; line-height: 1; letter-spacing: -2px; flex: 1; overflow: hidden; white-space: nowrap; }
+.captured-pieces .muted { font-size: 0.95rem; letter-spacing: 0; }
+.advantage { background: var(--hint); color: white; border-radius: 999px; padding: 2px 10px; font-weight: 600; }
+.muted { color: var(--muted); }
+
+/* --- panels & buttons ---------------------------------------------------- */
+.panel { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+.panel h2 { font-size: 1.1rem; margin: 16px 0 8px; }
+.panel h2:first-child { margin-top: 0; }
+
+.button-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 14px; padding: 12px 8px; color: white; font-weight: 600; font-size: 1rem; cursor: pointer; text-decoration: none; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15); transition: transform 0.1s, filter 0.1s; }
+.btn:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-hint { background: var(--hint); }
+.btn-undo { background: var(--undo); }
+.btn-new { background: var(--new); }
+.btn-pgn { background: var(--pgn); width: 100%; margin-top: 16px; }
+
+.color-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.level { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 12px; border: 2px solid #dde6f5; background: #f8fbff; cursor: pointer; text-align: left; color: var(--text); }
+.level:hover:not(:disabled) { border-color: var(--primary); }
+.level.active { border-color: var(--primary); background: #e3edff; font-weight: 600; }
+.level:disabled { opacity: 0.6; cursor: wait; }
+
+/* --- move history -------------------------------------------------------- */
+.history ol { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; font-family: ui-monospace, 'Cascadia Mono', monospace; }
+.history li { display: grid; grid-template-columns: 3ch 1fr 1fr; gap: 8px; padding: 4px 6px; border-radius: 6px; }
+.history li:nth-child(odd) { background: #f4f7fc; }
+.move-no { color: var(--muted); }
+
+/* --- promotion picker ---------------------------------------------------- */
+.promotion-overlay { position: absolute; inset: 0; background: rgba(36, 50, 74, 0.45); display: grid; place-items: center; border-radius: 14px; z-index: 10; }
+.promotion-card { background: white; border-radius: var(--radius); padding: 16px 20px; text-align: center; box-shadow: var(--shadow); }
+.promotion-card h3 { margin: 0 0 4px; }
+.promotion-card p { margin: 0 0 12px; color: var(--muted); }
+.promotion-choices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.promotion-choices button { display: flex; flex-direction: column; align-items: center; padding: 8px; border: 2px solid #dde6f5; border-radius: 12px; background: #f8fbff; cursor: pointer; }
+.promotion-choices button:hover { border-color: var(--primary); }
+.promotion-choices .glyph { font-size: 2.4rem; line-height: 1; }
+
+/* --- responsive ---------------------------------------------------------- */
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .app { padding: 10px; }
+  .status { font-size: 1rem; }
+  .btn { font-size: 0.95rem; padding: 10px 4px; }
+}
+
+/* --- level picker (100 levels in tiers) ----------------------------------- */
+.level-stepper { display: flex; align-items: center; gap: 8px; }
+.step { width: 44px; height: 44px; flex: none; border: 0; border-radius: 12px; background: var(--primary); color: white; font-size: 1.1rem; cursor: pointer; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); }
+.step:disabled { opacity: 0.4; cursor: not-allowed; }
+.level-current { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 10px; border-radius: 12px; background: #e3edff; min-height: 44px; }
+.level-current > span:last-child { display: flex; flex-direction: column; line-height: 1.15; }
+.level-current-emoji { font-size: 1.7rem; }
+.level-current-name { font-size: 0.9rem; color: var(--muted); }
+
+.tier-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.tier-tab { position: relative; padding: 5px 10px; border-radius: 999px; border: 2px solid #dde6f5; background: #f8fbff; color: var(--text); cursor: pointer; font-size: 0.9rem; }
+.tier-tab:hover { border-color: var(--primary); }
+.tier-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
+/* Small dot on the tier that holds the selected level, when browsing another tier. */
+.tier-tab.has-current:not(.active)::after { content: ''; position: absolute; top: 2px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--new); }
+
+.level-desc { margin: 10px 0 8px; color: var(--muted); font-size: 0.9rem; }
+.level-desc strong { color: var(--text); }
+
+.level-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.level-cell { aspect-ratio: 1.4; border-radius: 10px; border: 2px solid #dde6f5; background: #f8fbff; color: var(--text); font-weight: 600; font-size: 0.95rem; cursor: pointer; }
+.level-cell:hover:not(:disabled) { border-color: var(--primary); }
+.level-cell.active { background: var(--primary); border-color: var(--primary); color: white; }
+.level-cell:disabled { opacity: 0.6; cursor: wait; }
+
+/* --- level-up prompt ------------------------------------------------------ */
+.level-up { margin-top: 8px; border: 0; border-radius: 12px; padding: 8px 14px; background: var(--hint); color: white; font-weight: 600; font-size: 1rem; cursor: pointer; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); }

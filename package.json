@@ -1,0 +1,14 @@
+{
+  "name": "chessmaster",
+  "private": true,
+  "description": "Chess against a friendly Stockfish bot — React frontend + Express backend",
+  "scripts": {
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
+    "start": "concurrently -n api,web -c blue,magenta \"npm --prefix backend start\" \"npm --prefix frontend start\"",
+    "test": "npm --prefix backend test",
+    "build": "npm --prefix frontend run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}

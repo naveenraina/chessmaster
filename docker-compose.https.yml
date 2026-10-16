@@ -1,0 +1,31 @@
+# Optional HTTPS for a public server, layered on top of docker-compose.yml.
+# Caddy gets and renews a free Let's Encrypt certificate automatically.
+#
+# Prerequisites: a domain whose DNS A record points at this server, and ports
+# 80 and 443 open in the firewall.
+#
+#   DOMAIN=chess.example.com docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+#
+# (Or put DOMAIN=chess.example.com in a .env file next to this file.)
+
+services:
+  frontend:
+    ports: !reset [] # only reachable through Caddy
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${DOMAIN:?Set DOMAIN to your domain name} --to frontend:80
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - caddy_data:/data # certificates; keep this volume so they aren't re-issued on every restart
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  caddy_data:
+  caddy_config:

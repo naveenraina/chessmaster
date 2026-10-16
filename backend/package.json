@@ -1,0 +1,27 @@
+{
+  "name": "chessmaster-backend",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "author": "",
+  "license": "GPL-3.0",
+  "description": "Express API that plays chess against a child using Stockfish",
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "chessmaster": "file:..",
+    "cors": "^2.8.6",
+    "express": "^4.22.3",
+    "stockfish": "^19.0.1"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
