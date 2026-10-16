@@ -45,7 +45,7 @@ export async function chooseBotMove(chess, level) {
 /** Strongest move we can find, for hints. */
 export async function findBestMove(chess) {
   try {
-    const { bestMove } = await engine.bestMove(chess.fen(), { skill: 20, depth: 12, movetimeMs: 800 });
+    const { bestMove } = await engine.bestMove(chess.fen(), { elo: null, depth: 12, movetimeMs: 800 });
     return uciToMove(bestMove);
   } catch (err) {
     console.error('[hint] Stockfish failed, using fallback move:', err.message);

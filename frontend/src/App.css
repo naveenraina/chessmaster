@@ -107,10 +107,10 @@ button { font: inherit; }
 }
 
 /* --- level picker (100 levels in tiers) ----------------------------------- */
-.level-stepper { display: flex; align-items: center; gap: 8px; }
-.step { width: 44px; height: 44px; flex: none; border: 0; border-radius: 12px; background: var(--primary); color: white; font-size: 1.1rem; cursor: pointer; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); }
+.level-stepper { display: flex; align-items: center; gap: 5px; }
+.step { width: 36px; height: 44px; flex: none; border: 0; border-radius: 10px; background: var(--primary); color: white; font-size: 1.1rem; cursor: pointer; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); }
 .step:disabled { opacity: 0.4; cursor: not-allowed; }
-.level-current { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 10px; border-radius: 12px; background: #e3edff; min-height: 44px; }
+.level-current { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 10px; border-radius: 12px; background: #e3edff; min-height: 44px; }
 .level-current > span:last-child { display: flex; flex-direction: column; line-height: 1.15; }
 .level-current-emoji { font-size: 1.7rem; }
 .level-current-name { font-size: 0.9rem; color: var(--muted); }
@@ -125,11 +125,13 @@ button { font: inherit; }
 .level-desc { margin: 10px 0 8px; color: var(--muted); font-size: 0.9rem; }
 .level-desc strong { color: var(--text); }
 
-.level-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-.level-cell { aspect-ratio: 1.4; border-radius: 10px; border: 2px solid #dde6f5; background: #f8fbff; color: var(--text); font-weight: 600; font-size: 0.95rem; cursor: pointer; }
-.level-cell:hover:not(:disabled) { border-color: var(--primary); }
-.level-cell.active { background: var(--primary); border-color: var(--primary); color: white; }
-.level-cell:disabled { opacity: 0.6; cursor: wait; }
 
 /* --- level-up prompt ------------------------------------------------------ */
 .level-up { margin-top: 8px; border: 0; border-radius: 12px; padding: 8px 14px; background: var(--hint); color: white; font-weight: 600; font-size: 1rem; cursor: pointer; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); }
+
+/* --- tier slider ---------------------------------------------------------- */
+.tier-slider input[type='range'] { width: 100%; accent-color: var(--primary); height: 28px; cursor: pointer; }
+.tier-slider input.inactive { opacity: 0.45; }
+.tier-slider-labels { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.link-btn { background: none; border: 0; padding: 0; color: var(--primary); font-weight: 600; font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
+.link-btn:disabled { opacity: 0.5; cursor: wait; }

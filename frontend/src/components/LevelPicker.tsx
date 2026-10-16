@@ -1,40 +1,65 @@
 /**
- * Picks one of the 100 bot levels.
+ * Picks one of the 500 bot levels.
  *
- * Tier tabs (Beginner, Novice, ... Grandmaster) choose which group of levels
- * is shown; the numbered grid below picks the exact level. ◀ ▶ step one level
- * at a time, which is the easiest way to make the bot a little harder after a win.
+ * - « ◀ ▶ »  step 10 or 1 levels at a time (crossing into the next tier as needed)
+ * - tier tabs (Beginner … Grandmaster) jump to a group of levels
+ * - the slider picks any level inside the open tier
+ *
+ * Dragging the slider only previews; the level is sent to the server once the
+ * slider stops moving, so a drag doesn't fire dozens of requests.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChessGame } from '../hooks/useChessGame';
 
+const COMMIT_DELAY_MS = 350;
+
 export function LevelPicker({ chess }: { chess: ChessGame }) {
-  const { tiers, difficulties, settings, thinking } = chess;
-  const current = difficulties.find((d) => d.id === settings.difficulty);
+  const { tiers, difficulties, settings, thinking, changeDifficulty } = chess;
   const maxLevel = difficulties.length;
 
-  // The tier being browsed; follows the selected level unless the player taps another tab.
+  // Level shown in the picker; runs ahead of settings.difficulty while the slider moves.
+  const [draft, setDraft] = useState(settings.difficulty);
+  useEffect(() => setDraft(settings.difficulty), [settings.difficulty]);
+
+  const commitTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(commitTimer.current), []);
+
+  const shown = difficulties.find((d) => d.id === draft);
+
+  // The tier being browsed; follows the shown level unless the player taps another tab.
   const [viewTier, setViewTier] = useState<string | null>(null);
-  useEffect(() => setViewTier(current?.tier ?? null), [current?.tier]);
+  useEffect(() => setViewTier(shown?.tier ?? null), [shown?.tier]);
 
   const tier = tiers.find((t) => t.id === viewTier) ?? tiers[0];
-  if (!tier || !current) return null;
+  if (!tier || !shown) return null;
 
-  const levelsInTier = difficulties.filter((d) => d.tier === tier.id);
-  const step = (delta: number) => chess.changeDifficulty(Math.min(maxLevel, Math.max(1, current.id + delta)));
+  const clamp = (n: number) => Math.min(maxLevel, Math.max(1, n));
+
+  function select(level: number, delayed = false) {
+    const next = clamp(level);
+    setDraft(next);
+    window.clearTimeout(commitTimer.current);
+    if (next === settings.difficulty) return;
+    if (delayed) commitTimer.current = window.setTimeout(() => changeDifficulty(next), COMMIT_DELAY_MS);
+    else changeDifficulty(next);
+  }
+
+  const inViewTier = shown.tier === tier.id;
 
   return (
     <div className="level-picker">
       <div className="level-stepper">
-        <button className="step" onClick={() => step(-1)} disabled={thinking || current.id <= 1} aria-label="Easier">◀</button>
-        <div className="level-current">
-          <span className="level-current-emoji">{current.emoji}</span>
+        <button className="step" onClick={() => select(draft - 10)} disabled={thinking || draft <= 1} aria-label="10 levels easier">«</button>
+        <button className="step" onClick={() => select(draft - 1)} disabled={thinking || draft <= 1} aria-label="Easier">◀</button>
+        <div className="level-current" aria-live="polite">
+          <span className="level-current-emoji">{shown.emoji}</span>
           <span>
-            <strong>Level {current.id}</strong>
-            <span className="level-current-name">{current.name}</span>
+            <strong>Level {shown.id}</strong>
+            <span className="level-current-name">{shown.name}</span>
           </span>
         </div>
-        <button className="step" onClick={() => step(1)} disabled={thinking || current.id >= maxLevel} aria-label="Harder">▶</button>
+        <button className="step" onClick={() => select(draft + 1)} disabled={thinking || draft >= maxLevel} aria-label="Harder">▶</button>
+        <button className="step" onClick={() => select(draft + 10)} disabled={thinking || draft >= maxLevel} aria-label="10 levels harder">»</button>
       </div>
 
       <div className="tier-tabs" role="tablist" aria-label="Level groups">
@@ -43,7 +68,7 @@ export function LevelPicker({ chess }: { chess: ChessGame }) {
             key={t.id}
             role="tab"
             aria-selected={t.id === tier.id}
-            className={`tier-tab ${t.id === tier.id ? 'active' : ''} ${t.id === current.tier ? 'has-current' : ''}`}
+            className={`tier-tab ${t.id === tier.id ? 'active' : ''} ${t.id === shown.tier ? 'has-current' : ''}`}
             onClick={() => setViewTier(t.id)}
             title={`Levels ${t.from}–${t.to}`}
           >
@@ -56,21 +81,27 @@ export function LevelPicker({ chess }: { chess: ChessGame }) {
         {tier.emoji} <strong>{tier.name}</strong> (levels {tier.from}–{tier.to}): {tier.description}
       </p>
 
-      <div className="level-grid" role="radiogroup" aria-label={`${tier.name} levels`}>
-        {levelsInTier.map((d) => (
-          <button
-            key={d.id}
-            role="radio"
-            aria-checked={d.id === current.id}
-            aria-label={`Level ${d.id}, ${d.name}`}
-            className={`level-cell ${d.id === current.id ? 'active' : ''}`}
-            onClick={() => chess.changeDifficulty(d.id)}
-            disabled={thinking}
-            title={d.name}
-          >
-            {d.id}
-          </button>
-        ))}
+      <div className="tier-slider">
+        <input
+          type="range"
+          min={tier.from}
+          max={tier.to}
+          // Outside this tier, park the thumb at the end nearest the current level.
+          value={inViewTier ? draft : draft < tier.from ? tier.from : tier.to}
+          onChange={(e) => select(Number(e.target.value), true)}
+          disabled={thinking}
+          aria-label={`${tier.name} level`}
+          className={inViewTier ? '' : 'inactive'}
+        />
+        <div className="tier-slider-labels">
+          <span>{tier.from}</span>
+          {!inViewTier && (
+            <button className="link-btn" onClick={() => select(tier.from)} disabled={thinking}>
+              Start {tier.name} at level {tier.from}
+            </button>
+          )}
+          <span>{tier.to}</span>
+        </div>
       </div>
     </div>
   );

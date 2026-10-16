@@ -63,14 +63,16 @@ export class StockfishEngine {
   /**
    * Asks the engine for the best move in a position.
    * @param {string} fen
-   * @param {{skill?: number, depth?: number, movetimeMs?: number}} opts
+   * @param {{elo?: number|null, depth?: number, movetimeMs?: number}} opts
+   *        elo limits playing strength (1320-3190); null/undefined = full strength.
    * @returns {Promise<{bestMove: string, scoreCp: number|null, mateIn: number|null}>}
    *          bestMove is UCI notation, e.g. "e2e4" or "e7e8q".
    */
-  bestMove(fen, { skill = 20, depth = 12, movetimeMs = 1000 } = {}) {
+  bestMove(fen, { elo = null, depth = 12, movetimeMs = 1000 } = {}) {
     return this.#enqueue(async () => {
       await this.start();
-      this.#send(`setoption name Skill Level value ${skill}`);
+      this.#send(`setoption name UCI_LimitStrength value ${elo != null}`);
+      if (elo != null) this.#send(`setoption name UCI_Elo value ${elo}`);
       this.#send('ucinewgame');
       await this.#isReady();
 

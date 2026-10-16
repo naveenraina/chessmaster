@@ -1,13 +1,18 @@
 /**
- * Checks the generated level table: 100 levels, every level in exactly one
- * tier, and strength that never drops from one level to the next.
+ * Checks the generated level table: 500 levels, every level in exactly one
+ * tier, strength that never drops from one level to the next, and no two
+ * neighbouring levels with identical settings.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DIFFICULTIES, MAX_LEVEL, TIERS, getDifficulty, listDifficulties } from '../src/difficulty.js';
 
-test('there are 100 levels and the tiers cover them without gaps', () => {
-  assert.equal(Object.keys(DIFFICULTIES).length, 100);
+/** null Elo means "no limit", i.e. stronger than any number. */
+const eloValue = (level) => level.elo ?? Infinity;
+
+test('there are 500 levels and the tiers cover them without gaps', () => {
+  assert.equal(MAX_LEVEL, 500);
+  assert.equal(Object.keys(DIFFICULTIES).length, MAX_LEVEL);
   assert.equal(TIERS[0].from, 1);
   assert.equal(TIERS.at(-1).to, MAX_LEVEL);
   for (let i = 1; i < TIERS.length; i++) {
@@ -15,25 +20,34 @@ test('there are 100 levels and the tiers cover them without gaps', () => {
   }
 });
 
-test('strength never decreases as the level goes up', () => {
+test('every level is a little stronger than the one before', () => {
   for (let n = 2; n <= MAX_LEVEL; n++) {
     const prev = DIFFICULTIES[n - 1];
     const cur = DIFFICULTIES[n];
-    assert.ok(cur.skill >= prev.skill, `skill at ${n}`);
+    assert.ok(eloValue(cur) >= eloValue(prev), `elo at ${n}`);
     assert.ok(cur.depth >= prev.depth, `depth at ${n}`);
     assert.ok(cur.movetimeMs >= prev.movetimeMs, `movetime at ${n}`);
     assert.ok(cur.randomChance <= prev.randomChance, `random chance at ${n}`);
+    const same = cur.elo === prev.elo && cur.depth === prev.depth && cur.movetimeMs === prev.movetimeMs && cur.randomChance === prev.randomChance;
+    assert.ok(!same, `level ${n} has the same settings as level ${n - 1}`);
   }
-  assert.equal(DIFFICULTIES[100].skill, 20);
-  assert.equal(DIFFICULTIES[100].randomChance, 0);
+});
+
+test('Elo stays inside what Stockfish accepts; the top level is unlimited', () => {
+  for (let n = 1; n < MAX_LEVEL; n++) {
+    const { elo } = DIFFICULTIES[n];
+    assert.ok(Number.isInteger(elo) && elo >= 1320 && elo <= 3190, `elo ${elo} at level ${n}`);
+  }
+  assert.equal(DIFFICULTIES[MAX_LEVEL].elo, null);
+  assert.equal(DIFFICULTIES[MAX_LEVEL].randomChance, 0);
 });
 
 test('lookups and the public list', () => {
   assert.equal(getDifficulty(0), null);
-  assert.equal(getDifficulty(101), null);
-  assert.equal(getDifficulty('37').tier, 'intermediate');
+  assert.equal(getDifficulty(501), null);
+  assert.equal(getDifficulty('200').tier, 'intermediate');
   const { tiers, levels } = listDifficulties();
   assert.equal(tiers.length, TIERS.length);
-  assert.equal(levels.length, 100);
-  assert.equal(levels[0].skill, undefined, 'engine tuning is not exposed');
+  assert.equal(levels.length, MAX_LEVEL);
+  assert.equal(levels[0].elo, undefined, 'engine tuning is not exposed');
 });

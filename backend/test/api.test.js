@@ -75,15 +75,15 @@ test('hint, difficulty change and PGN export', async () => {
   assert.match(hint.body.from, /^[a-h][1-8]$/);
   assert.ok(hint.body.explanation);
 
-  const changed = await call('POST', '/difficulty', { gameId: game.gameId, difficulty: 100 });
-  assert.equal(changed.body.difficulty, 100);
-  assert.equal((await call('POST', '/difficulty', { gameId: game.gameId, difficulty: 101 })).status, 400);
+  const changed = await call('POST', '/difficulty', { gameId: game.gameId, difficulty: 500 });
+  assert.equal(changed.body.difficulty, 500);
+  assert.equal((await call('POST', '/difficulty', { gameId: game.gameId, difficulty: 501 })).status, 400);
 
   await call('POST', '/move', { gameId: game.gameId, from: 'e2', to: 'e4' });
   const pgn = await call('GET', `/pgn/${game.gameId}`);
   assert.equal(pgn.status, 200);
   assert.match(pgn.body, /\[White "You"\]/);
-  assert.match(pgn.body, /\[Black "ChessMaster Bot \(Level 100, Grandmaster 5\)"\]/);
+  assert.match(pgn.body, /\[Black "ChessMaster Bot \(Level 500, Grandmaster 25\)"\]/);
   assert.match(pgn.body, /1\. e4 /);
 });
 

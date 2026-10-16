@@ -11,7 +11,7 @@ A child-friendly web app for playing chess against a Stockfish bot.
 |---|---|
 | Drag-and-drop **and** tap-to-move | Tap-to-move is easier for small hands on tablets and phones |
 | Legal-move highlights | Dots for empty squares, rings for captures; the king's square turns red when in check |
-| 100 difficulty levels in 7 tiers | 🐣 Beginner → 👑 Grandmaster. ◀ ▶ step one level at a time, and a "Ready for Level N?" button appears after a win (see [Difficulty](#how-difficulty-works)) |
+| 500 difficulty levels in 7 tiers | 🐣 Beginner → 👑 Grandmaster. ◀ ▶ step 1 level, « » step 10, a slider picks any level in a tier, and a "Ready for Level N?" button appears after a win (see [Difficulty](#how-difficulty-works)) |
 | Full rule enforcement | Checked on the client for instant feedback, and again on the server, which has the final say |
 | Undo, New game, Play as White/Black | Undo takes back your move and the bot's reply |
 | Hints | Stockfish's best move, shown as a green arrow with a plain-English explanation |
@@ -54,7 +54,7 @@ ChessMaster/
         │   ├── MoveHistory.tsx
         │   ├── StatusBanner.tsx
         │   ├── Controls.tsx
-        │   ├── LevelPicker.tsx     # tier tabs + numbered level grid
+        │   ├── LevelPicker.tsx     # tier tabs, slider and step buttons
         │   └── pieces.ts
         └── engine/browserStockfish.ts   # optional: Stockfish in a Web Worker (not wired in)
 ```
@@ -110,7 +110,7 @@ All routes are under `/api`. Each game endpoint returns the full game state: `fe
 | Method | Route | Body | Notes |
 |---|---|---|---|
 | `GET` | `/difficulties` | | Level list for the UI |
-| `POST` | `/newgame` | `{ difficulty?: 1-100, playerColor?: "w" \| "b" }` | If the player is black, the bot makes the first move |
+| `POST` | `/newgame` | `{ difficulty?: 1-500, playerColor?: "w" \| "b" }` | If the player is black, the bot makes the first move |
 | `POST` | `/move` | `{ gameId, from, to, promotion? }` | Validates the move, then plays the bot's reply in the same response. Illegal moves get a `400` with a friendly message |
 | `POST` | `/difficulty` | `{ gameId, difficulty }` | Takes effect from the bot's next move |
 | `POST` | `/undo` | `{ gameId }` | Takes moves back until it's the player's turn again |
@@ -126,25 +126,27 @@ curl -X POST localhost:3001/api/move -H "Content-Type: application/json" -d '{"g
 
 ## How difficulty works
 
-Even at Stockfish's lowest "Skill Level" it plays far better than a beginner. The lower levels therefore also play a **random legal move** some of the time, which produces the kind of blunders a child can learn to punish.
+Even at its weakest setting Stockfish plays far better than a beginner. The lower levels therefore also play a **random legal move** some of the time, which produces the kind of blunders a child can learn to punish.
 
-There are **100 levels in 7 tiers**. Each level's settings are calculated from its number in `backend/src/difficulty.js`, so strength rises smoothly with no jumps:
+There are **500 levels in 7 tiers**. Each level's settings are calculated from its number in `backend/src/difficulty.js`, so strength rises smoothly. Strength is limited with Stockfish's `UCI_Elo` option (1320–3190) rather than its "Skill Level", which has only 21 steps and would make most neighbouring levels identical.
 
-| Tier | Levels | Skill (0-20) | Depth | Random-move chance |
+| Tier | Levels | Engine Elo setting | Depth | Random-move chance |
 |---|---|---|---|---|
-| 🐣 Beginner | 1–20 | 0 → 2 | 1 → 2 | 60% → 33% |
-| 🐰 Novice | 21–35 | 3 → 5 | 3 → 4 | 32% → 17% |
-| 🦊 Intermediate | 36–55 | 5 → 9 | 5 → 8 | 16% → 1% |
-| 🦉 Advanced | 56–70 | 9 → 13 | 8 → 11 | 1% → 0% (none from level 60) |
-| 🦁 Expert | 71–85 | 13 → 16 | 11 → 14 | 0% |
-| 🐉 Master | 86–95 | 16 → 19 | 15 → 17 | 0% |
-| 👑 Grandmaster | 96–100 | 19 → 20 | 17 → 18 | 0% (level 100 is full-strength Stockfish) |
+| 🐣 Beginner | 1–100 | 1320 → 1588 | 1 → 3 | 60% → 33% |
+| 🐰 Novice | 101–175 | 1592 → 1848 | 3 → 5 | 33% → 16% |
+| 🦊 Intermediate | 176–275 | 1852 → 2231 | 5 → 8 | 16% → 1.5% |
+| 🦉 Advanced | 276–350 | 2235 → 2538 | 8 → 11 | 1.4% → 0% (none from level 299) |
+| 🦁 Expert | 351–425 | 2542 → 2858 | 11 → 14 | 0% |
+| 🐉 Master | 426–475 | 2862 → 3078 | 14 → 17 | 0% |
+| 👑 Grandmaster | 476–500 | 3083 → unlimited | 17 → 18 | 0% (level 500 is full-strength Stockfish) |
 
-Thinking time also rises, from 0.1 s at level 1 to 1.5 s at level 100. The tier names are labels for the child; they are not chess ratings.
+Thinking time also rises, from 0.1 s at level 1 to 1.5 s at level 500.
+
+**What to expect:** neighbouring levels differ only slightly; that is the point of having 500. A child will feel a difference over 10–20 levels rather than over 1. The tier names and the engine Elo setting are not real-world ratings: the random moves and depth limits make the low levels much weaker than their Elo number suggests.
 
 - **To retune strength**, change the curves in `buildLevel()`. Raise `LAST_RANDOM_LEVEL` to keep random blunders going into higher levels.
-- **To resize the tiers**, edit `from`/`to` in `TIERS`. `MAX_LEVEL` sets the total number of levels.
-- `backend/test/difficulty.test.js` checks that the tiers have no gaps and that no level is weaker than the one below it.
+- **To change the number of levels**, set `MAX_LEVEL` and adjust `from`/`to` in `TIERS`. The tests catch gaps.
+- `backend/test/difficulty.test.js` checks that the tiers have no gaps, that no level is weaker than the one below it, and that no two neighbouring levels have identical settings.
 - The UI builds its picker from `GET /api/difficulties`, so it needs no changes.
 
 ## How the Stockfish integration works (server)
@@ -152,7 +154,8 @@ Thinking time also rises, from 0.1 s at level 1 to 1.5 s at level 100. The tier 
 `backend/src/engine.js` starts Stockfish once as a child process: `node node_modules/stockfish/bin/stockfish-19-lite-single.js`. It then talks to it with the text-based [UCI protocol](https://backscattering.de/chess/uci/):
 
 ```
-→ setoption name Skill Level value 3
+→ setoption name UCI_LimitStrength value true
+→ setoption name UCI_Elo value 1500
 → position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1
 → go depth 3 movetime 200
 ← info depth 1 ... score cp -30 ...
