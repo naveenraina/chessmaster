@@ -297,7 +297,7 @@ Open **http://localhost:8080**. The script:
 1. checks for IIS, both modules and Node, and stops with a clear message if one is missing;
 2. builds the frontend and copies it to `C:\inetpub\chessmaster`, with `deploy/iis/frontend.web.config` as its `web.config`;
 3. copies the backend to `C:\inetpub\chessmaster-api`, runs `npm ci --omit=dev`, and writes `deploy/iis/api.web.config` with your Node path;
-4. creates the app pools `ChessMaster` and `ChessMaster-api`, the site, and the `/api` application, and grants the folder permissions;
+4. creates the app pools `ChessMaster` and `ChessMaster-api`, the site, and the `/api` application, grants the folder permissions, and unlocks the IIS config sections the API's `web.config` needs (for `/api` only);
 5. starts everything and calls `/api/health` to confirm it works.
 
 **To redeploy after changing the code**, run the same command again. It stops the site, copies the new files and starts it again. Games in progress end, because they are kept in memory.
@@ -337,7 +337,8 @@ The `ChessMaster-api` app pool is set to **AlwaysRunning**, with **no idle timeo
 |---|---|
 | The script says a module is missing | Install it (see setup above), then run the script again |
 | `/api/...` returns **502.3 / 502.5** | Node didn't start. Read the newest file in `C:\inetpub\chessmaster-api\logs\`, which holds Node's output. |
-| `/api/...` returns **500.19** | A module is missing, or `web.config` is malformed. Re-check the URL Rewrite and HttpPlatformHandler installs. |
+| `/api/...` returns **500.19** "This configuration section cannot be used at this path" | IIS locks some sections against `web.config` by default. The deploy script unlocks `handlers`, `httpPlatform` and `rewrite/rules` for the `/api` application only. On a site deployed with an older version of the script, run as Administrator: `foreach ($s in 'system.webServer/handlers','system.webServer/httpPlatform','system.webServer/rewrite/rules') { & "$env:SystemRoot\System32\inetsrv\appcmd.exe" unlock config "ChessMaster/api" "-section:$s" -commit:apphost }` |
+| `/api/...` returns **500.19** with another message | A module is missing, or `web.config` is malformed. Re-check the URL Rewrite and HttpPlatformHandler installs. |
 | The page loads but says it can't reach the server | Open `http://localhost:8080/api/health`, which should return `{"ok":true}` |
 | Site won't start | Another site uses the same port and host name. Change `-Port` or `-HostName`. |
 

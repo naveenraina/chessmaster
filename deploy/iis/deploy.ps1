@@ -180,6 +180,17 @@ if (-not (Get-WebApplication -Site $SiteName -Name 'api')) {
     Set-ItemProperty "IIS:\Sites\$SiteName\api" -Name physicalPath -Value $ApiPath
     Set-ItemProperty "IIS:\Sites\$SiteName\api" -Name applicationPool -Value $apiPool
 }
+# The API's web.config sets sections that IIS locks by default on many installs, which
+# gives "500.19 - This configuration section cannot be used at this path". Unlock them
+# for this one application only (a <location> entry in applicationHost.config); the
+# rest of the server stays locked.
+$appcmd = Join-Path $env:SystemRoot 'System32\inetsrv\appcmd.exe'
+foreach ($section in @('system.webServer/handlers', 'system.webServer/httpPlatform', 'system.webServer/rewrite/rules')) {
+    $output = & $appcmd unlock config "$SiteName/api" "-section:$section" -commit:apphost 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Could not unlock $section for $SiteName/api: $output" }
+}
+Write-Host "Allowed the API's web.config to configure handlers, httpPlatform and rewrite rules."
+
 # Start Node as soon as the pool starts (needs the Application Initialization feature; ignored without it).
 try { Set-ItemProperty "IIS:\Sites\$SiteName\api" -Name preloadEnabled -Value $true } catch { Write-Host 'preloadEnabled not available; Node will start on the first request.' }
 
