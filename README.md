@@ -29,6 +29,7 @@ ChessMaster/
 ├── docker-compose.yml        # production stack (see "Deployment with Docker")
 ├── docker-compose.https.yml  # optional HTTPS via Caddy
 ├── docker-compose.dev.yml    # live-reload dev stack
+├── deploy/iis/               # IIS deployment: deploy.ps1 + web.config templates
 ├── backend/
 │   ├── src/
 │   │   ├── server.js         # entry point: starts Express and warms up Stockfish
@@ -263,6 +264,84 @@ The app runs on http://localhost:5173 and the API on http://localhost:3001. The 
 - **Memory:** the backend is limited to 512 MB and uses about 80 MB in practice. Change `deploy.resources.limits` in `docker-compose.yml` if needed.
 - **Faster engine:** switch the backend image to `node:22-slim` (Debian), add `RUN apt-get update && apt-get install -y --no-install-recommends stockfish && rm -rf /var/lib/apt/lists/*`, and set `STOCKFISH_PATH: /usr/games/stockfish` in `docker-compose.yml`. The WASM engine is already more than fast enough for the bot levels, so this is only worth it with many players.
 - **API on another domain:** build the frontend with `VITE_API_URL` set (a build arg in `docker-compose.yml`), and set `CORS_ORIGIN` on the backend.
+
+## Deploying to IIS (Windows, no Docker)
+
+IIS serves the built React app, and runs the Node API as an IIS application at `/api`, all in one site:
+
+```
+browser ──► IIS site "ChessMaster" (:8080)
+              ├── /         → static files in C:\inetpub\chessmaster
+              └── /api/...  → IIS app "api" → HttpPlatformHandler → node.exe (Express + Stockfish)
+```
+
+[HttpPlatformHandler](https://www.iis.net/downloads/microsoft/httpplatformhandler) is a Microsoft IIS module that starts `node.exe` when needed and forwards `/api` requests to it. It also restarts Node if it crashes, so you don't need a separate Windows service.
+
+### One-time server setup
+
+1. **Enable IIS.** On Windows 10/11 use *Turn Windows features on or off* → *Internet Information Services*. On Windows Server use Server Manager → *Web Server (IIS)*. The defaults are enough; *Application Initialization* (under Application Development Features) is optional, and lets Node start before the first visitor arrives.
+2. **Install the [URL Rewrite](https://www.iis.net/downloads/microsoft/url-rewrite) module.**
+3. **Install the [HttpPlatformHandler](https://www.iis.net/downloads/microsoft/httpplatformhandler) module** (x64).
+4. **Install [Node.js](https://nodejs.org/) 20.19 or newer** (the LTS installer), then open a new terminal so `node` is on PATH.
+
+### Deploy
+
+Copy the project to the server (or run it on the machine that has IIS). Then, in **PowerShell run as Administrator**, from the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\iis\deploy.ps1
+```
+
+Open **http://localhost:8080**. The script:
+
+1. checks for IIS, both modules and Node, and stops with a clear message if one is missing;
+2. builds the frontend and copies it to `C:\inetpub\chessmaster`, with `deploy/iis/frontend.web.config` as its `web.config`;
+3. copies the backend to `C:\inetpub\chessmaster-api`, runs `npm ci --omit=dev`, and writes `deploy/iis/api.web.config` with your Node path;
+4. creates the app pools `ChessMaster` and `ChessMaster-api`, the site, and the `/api` application, and grants the folder permissions;
+5. starts everything and calls `/api/health` to confirm it works.
+
+**To redeploy after changing the code**, run the same command again. It stops the site, copies the new files and starts it again. Games in progress end, because they are kept in memory.
+
+Options:
+
+```powershell
+.\deploy\iis\deploy.ps1 -Port 80 -HostName chess.example.com
+```
+
+| Parameter | Default | |
+|---|---|---|
+| `-SiteName` | `ChessMaster` | IIS site name; the app pools are named after it |
+| `-Port` | `8080` | Port 80 is usually taken by "Default Web Site"; stop that site or use a host name |
+| `-HostName` | *(any)* | Host-name binding, e.g. `chess.example.com` |
+| `-SitePath` / `-ApiPath` | `C:\inetpub\chessmaster` / `C:\inetpub\chessmaster-api` | Where the files go |
+| `-NodeExe` | `node.exe` on PATH | Use a specific Node installation |
+| `-SkipBuild` | off | Reuse an existing `frontend\dist` |
+
+### Reaching it from other devices
+
+To play from a tablet on the same network, open the port in Windows Firewall (as Administrator), then browse to `http://<pc-name-or-ip>:8080`:
+
+```powershell
+New-NetFirewallRule -DisplayName "ChessMaster (TCP 8080)" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
+```
+
+For **HTTPS**, add an `https` binding with a certificate to the site in IIS Manager. [win-acme](https://www.win-acme.com/) can get and renew free Let's Encrypt certificates for IIS automatically.
+
+### How the API is kept alive
+
+The `ChessMaster-api` app pool is set to **AlwaysRunning**, with **no idle timeout** and **no scheduled recycling**. Otherwise IIS would stop Node after 20 idle minutes, or recycle it every 29 hours, and end the games that live in its memory. When IIS does stop Node, the Stockfish engine process exits with it.
+
+### Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| The script says a module is missing | Install it (see setup above), then run the script again |
+| `/api/...` returns **502.3 / 502.5** | Node didn't start. Read the newest file in `C:\inetpub\chessmaster-api\logs\`, which holds Node's output. |
+| `/api/...` returns **500.19** | A module is missing, or `web.config` is malformed. Re-check the URL Rewrite and HttpPlatformHandler installs. |
+| The page loads but says it can't reach the server | Open `http://localhost:8080/api/health`, which should return `{"ok":true}` |
+| Site won't start | Another site uses the same port and host name. Change `-Port` or `-HostName`. |
+
+**Alternative without HttpPlatformHandler:** run the backend as a Windows service (for example with [WinSW](https://github.com/winsw/winsw) or NSSM) on port 3001. Then install [Application Request Routing](https://www.iis.net/downloads/microsoft/application-request-routing), enable its proxy, and add a URL Rewrite rule that sends `/api/(.*)` to `http://localhost:3001/api/{R:1}`. The frontend `web.config` stays the same.
 
 ## Other hosting options
 
